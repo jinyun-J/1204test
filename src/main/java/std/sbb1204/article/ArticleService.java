@@ -1,6 +1,8 @@
 package std.sbb1204.article;
 
+import jakarta.persistence.criteria.*;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import std.sbb1204.DataNotFoundException;
 import std.sbb1204.user.SiteUser;
@@ -45,5 +47,25 @@ public class ArticleService {
     }
     public void delete(Article article) {
         this.articleRepository.delete(article);
+    }
+
+    private Specification<Article> search(String kw) {
+        return new Specification<>() {
+            private static final long serialVersionUID = 1L;
+            @Override
+            public Predicate toPredicate(Root<Article> articleRoot, CriteriaQuery<?> query, CriteriaBuilder cb) {
+                query.distinct(true);  // 중복을 제거
+                Join<Article, SiteUser> u1 = articleRoot.join("author", JoinType.LEFT);
+
+                return cb.or(cb.like(articleRoot.get("subject"), "%" + kw + "%"), // 제목
+                        cb.like(articleRoot.get("content"), "%" + kw + "%"),      // 내용
+                        cb.like(u1.get("username"), "%" + kw + "%"));   // 질문 작성자
+            }
+        };
+    }
+
+    public List<Article> getList(String kw) {
+        Specification<Article> spec = search(kw);
+        return this.articleRepository.findAll(spec);
     }
 }
